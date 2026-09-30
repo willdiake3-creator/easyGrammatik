@@ -1,2 +1,442 @@
 # easyGrammatik
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Grammatik-Trainingsplattform</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f7f6; margin: 0; padding: 20px; display: flex; justify-content: center; }
+    .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 600px; width: 100%; }
+    
+    /* Header & Modul-Auswahl */
+    .module-select-container { margin-bottom: 20px; }
+    .module-select-container label { font-weight: bold; font-size: 0.9em; display: block; margin-bottom: 5px; color: #555; }
+    select { width: 100%; padding: 10px; font-size: 1em; border-radius: 6px; border: 1px solid #ccc; background: #fff; cursor: pointer; }
+
+    /* Top-Navi & Kategorie */
+    .meta-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .category { font-weight: bold; color: #007bff; text-transform: uppercase; font-size: 0.85em; }
+    .right-info { text-align: right; }
+    .counter { font-size: 0.85em; color: #777; font-weight: bold; }
+    .score-badge { font-size: 0.9em; font-weight: bold; color: #28a745; margin-top: 2px; }
+
+    .sentence { font-size: 1.25em; margin: 15px 0; padding: 12px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px; }
+    
+    .options-container { display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; }
+    .option-btn { background: #f8f9fa; color: #333; border: 2px solid #e9ecef; padding: 12px 15px; font-size: 1em; border-radius: 8px; cursor: pointer; text-align: left; transition: all 0.2s ease; }
+    .option-btn:hover:not(:disabled) { background: #e2e6ea; border-color: #dae0e5; }
+    .option-btn:disabled { cursor: default; }
+    .option-btn.selected-correct { background: #d4edda; border-color: #28a745; color: #155724; font-weight: bold; }
+    .option-btn.selected-incorrect { background: #f8d7da; border-color: #dc3545; color: #721c24; font-weight: bold; }
+    
+    .feedback { margin-top: 20px; padding: 15px; border-radius: 6px; display: none; }
+    .correct { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+    .incorrect { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    .explanation { margin-top: 10px; font-size: 0.95em; line-height: 1.4; }
+    .example { margin-top: 5px; font-style: italic; color: #555; }
+    
+    /* Navigations-Buttons */
+    .nav-controls { display: flex; justify-content: space-between; gap: 10px; margin-top: 20px; }
+    .nav-btn { flex: 1; background: #007bff; color: white; border: none; padding: 10px 15px; font-size: 1em; border-radius: 6px; cursor: pointer; text-align: center; }
+    .nav-btn:hover:not(:disabled) { background: #0069d9; }
+    .nav-btn:disabled { background: #cccccc; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <!-- Modul-Auswahl -->
+  <div class="module-select-container">
+    <label for="module-select">Modul auswählen:</label>
+    <select id="module-select" onchange="changeModule()">
+      <option value="ALL">Alle Module (200 Übungen)</option>
+      <option value="M1">Modul 1: Deutsch - Satzbau & Verbposition (50)</option>
+      <option value="M2">Modul 2: Deutsch - Kasus & Artikel (50)</option>
+      <option value="M3">Modul 3: Deutsch - Zeitformen & Verbmodi (50)</option>
+      <option value="M4">Modul 4: Deutsch - Adjektive & Präpositionen (50)</option>
+    </select>
+  </div>
+
+  <div class="meta-info">
+    <div id="category" class="category">Kategorie</div>
+    <div class="right-info">
+      <div id="counter" class="counter">Übung 1 / 100</div>
+      <div id="score" class="score-badge">Punkte: 0 / 100</div>
+    </div>
+  </div>
+
+  <p><strong>Wähle die korrekte Satzvariante aus:</strong></p>
+  <div id="wrong-sentence" class="sentence">...</div>
+  
+  <div id="options" class="options-container"></div>
+
+  <div id="feedback" class="feedback">
+    <div id="feedback-text"></div>
+    <div id="explanation" class="explanation"></div>
+    <div id="example" class="example"></div>
+  </div>
+
+  <!-- Vor- und Zurück-Steuerung -->
+  <div class="nav-controls">
+    <button id="prev-btn" class="nav-btn" onclick="prevQuestion()">◄ Zurück</button>
+    <button id="next-btn" class="nav-btn" onclick="nextQuestion()">Weiter ►</button>
+  </div>
+</div>
+
+<script>
+  const exercises = [
+    // --- MODULE 1: GERMAN WORD ORDER & VERB POSITION (IDs 0-24 & 100-124) ---
+    { id: 0, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Heute ich gehe in die Schule.", correct: "Heute gehe ich in die Schule.", exp: "Steht ein Adverb an erster Stelle, folgt direkt das konjugierte Verb an Position 2.", ex: "Morgen fahre ich nach Berlin." },
+    { id: 1, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Weil ich bin müde, gehe ich schlafen.", correct: "Weil ich müde bin, gehe ich schlafen.", exp: "Die Konjunktion 'weil' leitet einen Nebensatz ein. Das konjugierte Verb steht am Ende.", ex: "Ich bleibe zu Hause, weil es regnet." },
+    { id: 2, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Er hat gestern gekauft ein neues Auto.", correct: "Er hat gestern ein neues Auto gekauft.", exp: "Das Partizip II ('gekauft') gehört ans Satzende.", ex: "Sie hat gestern einen Kuchen gebacken." },
+    { id: 3, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Gestern wir waren im Kino.", correct: "Gestern waren wir im Kino.", exp: "Bei temporalen Adverbien am Satzanfang rückt das Verb an Position 2.", ex: "Heute spielen wir Fußball." },
+    { id: 4, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Obwohl es regnet, wir gehen spazieren.", correct: "Obwohl es regnet, gehen wir spazieren.", exp: "Nach einem untergeordneten Nebensatz folgt das Verb des Hauptsatzes direkt an erster Stelle.", ex: "Als ich ankam, schlief er schon." },
+    { id: 5, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Ich weiß nicht, wo wohnst du.", correct: "Ich weiß nicht, wo du wohnst.", exp: "Indirekte Fragen sind Nebensätze; das Verb wandert ans Ende.", ex: "Kannst du mir sagen, wie spät es ist?" },
+    { id: 6, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Er kann gut Deutsch sprechen?", correct: "Kann er gut Deutsch sprechen?", exp: "Ja/Nein-Fragen beginnen immer mit dem konjugierten Verb.", ex: "Kommst du morgen mit?" },
+    { id: 7, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Dass du hier bist, freut sehr mich.", correct: "Dass du hier bist, freut mich sehr.", exp: "Pronomen als Objekte stehen vor weiteren Adverbien.", ex: "Es gefällt mir gut." },
+    { id: 8, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Sie muss morgen früh aufstehen auf.", correct: "Sie muss morgen früh aufstehen.", exp: "Bei Modalverben bleibt der Infinitiv am Satzende unverändert.", ex: "Wir wollen bald fahren." },
+    { id: 9, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Er steht um 7 Uhr jeden Tag auf.", correct: "Er steht jeden Tag um 7 Uhr auf.", exp: "Das trennbare Verb-Präfix ('auf') steht am Satzende.", ex: "Sie kauft im Supermarkt ein." },
+    { id: 10, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Ich habe nicht gesehen den Film.", correct: "Ich habe den Film nicht gesehen.", exp: "'Nicht' steht vor dem Partizip II am Ende.", ex: "Er hat die Hausaufgabe nicht gemacht." },
+    { id: 11, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Wenn du Zeit hast, wir können kochen.", correct: "Wenn du Zeit hast, können wir kochen.", exp: "Nach dem 'Wenn'-Nebensatz folgt das Modalverb an erster Stelle im Hauptsatz.", ex: "Wenn es warm ist, schwimmen wir." },
+    { id: 12, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Ich frage mich, ob er kommt morgen.", correct: "Ich frage mich, ob er morgen kommt.", exp: "Die Subjunktion 'ob' erzwingt das Verb ans Satzende.", ex: "Er weiß nicht, ob sie anruft." },
+    { id: 13, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Morgen wir besuchen unsere Großeltern.", correct: "Morgen besuchen wir unsere Großeltern.", exp: "Inversion bei Zeitangaben am Satzanfang.", ex: "Später essen wir." },
+    { id: 14, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Er hat vergessen seinen Schlüssel zu bringen.", correct: "Er hat vergessen, seinen Schlüssel mitzubringen.", exp: "Infinitiv mit 'zu' steht im Nachfeld am Ende.", ex: "Es ist wichtig, früh zu schlafen." },
+    { id: 15, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Manchmal ich trinke Kaffee.", correct: "Manchmal trinke ich Kaffee.", exp: "Verb an Position 2 nach 'Manchmal'.", ex: "Oft liest sie ein Buch." },
+    { id: 16, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Wir möchten fahren nach Spanien im Sommer.", correct: "Wir möchten im Sommer nach Spanien fahren.", exp: "Der Infinitiv schließt den Satz ab.", ex: "Sie möchte einen Apfel essen." },
+    { id: 17, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Warum du hast das gemacht?", correct: "Warum hast du das gemacht?", exp: "In W-Fragen steht das Verb direkt nach dem Fragewort.", ex: "Wo wohnst du?" },
+    { id: 18, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Trotzdem er ist müde, arbeitet er.", correct: "Trotzdem arbeitet er, obwohl er müde ist.", exp: "'Trotzdem' ist ein Adverb und erfordert das Verb an Position 2.", ex: "Es regnet; trotzdem geht er raus." },
+    { id: 19, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Ich trinke Tee, denn ich bin krank.", correct: "Ich trinke Tee, denn ich bin krank.", exp: "'Denn' verbindet zwei Hauptsätze, die Wortstellung ändert sich nicht.", ex: "Er bleibt hier, denn er wartet." },
+    { id: 20, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Er sagt, dass er hat kein Geld.", correct: "Er sagt, dass er kein Geld hat.", exp: "Verb ans Ende bei 'dass'-Sätzen.", ex: "Ich hoffe, dass du kommst." },
+    { id: 21, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Am Wochenende ich schlafe lange.", correct: "Am Wochenende schlafe ich lange.", exp: "Satzglied an Position 1 erfordert Verb an Position 2.", ex: "Im Winter schneit es." },
+    { id: 22, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Sie wird morgen anrufen mich.", correct: "Sie wird mich morgen anrufen.", exp: "Objektpronomen stehen vor Zeitangaben.", ex: "Er möchte dich sehen." },
+    { id: 23, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Beide Kinder spielen gerne Fußball draußen.", correct: "Beide Kinder spielen draußen gerne Fußball.", exp: "Lokale Angaben stehen oft vor dem Objekt.", ex: "Wir lernen zu Hause Deutsch." },
+    { id: 24, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Bevor wir essen, wir waschen die Hände.", correct: "Bevor wir essen, waschen wir die Hände.", exp: "Hauptsatz nach Nebensatz beginnt mit dem Verb.", ex: "Ehe er geht, sagt er Tschüss." },
+    { id: 100, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Je mehr ich lerne, desto mehr ich verstehe.", correct: "Je mehr ich lerne, desto mehr verstehe ich.", exp: "Im Je...desto-Satz steht im desto-Teil das Verb direkt nach der Komparativgruppe (Pos. 2).", ex: "Je kälter es wird, desto wärmer ziehe ich mich an." },
+    { id: 101, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Er hat gesagt, dass er will morgen kommen.", correct: "Er hat gesagt, dass er morgen kommen will.", exp: "Im Nebensatz mit 'dass' steht das konjugierte Modalverb ganz am Ende.", ex: "Sie weiß, dass sie heute arbeiten muss." },
+    { id: 102, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Deshalb ich kann heute nicht kommen.", correct: "Deshalb kann ich heute nicht kommen.", exp: "'Deshalb' ist ein Konjunktionaladverb und fordert die Inversion (Verb an Pos. 2).", ex: "Es regnet, deshalb bleibe ich zu Hause." },
+    { id: 103, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Ich freue mich, weil habe ich die Prüfung bestanden.", correct: "Ich freue mich, weil ich die Prüfung bestanden habe.", exp: "Im Nebensatz steht das konjugierte Hilfsverb ('habe') hinter dem Partizip II am Ende.", ex: "Er ist glücklich, weil er gewonnen hat." },
+    { id: 104, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Er fragt, ob wir haben Zeit am Wochenende.", correct: "Er fragt, ob wir am Wochenende Zeit haben.", exp: "'Ob' leitet einen Nebensatz ein; das konjugierte Verb wandert ans Satzende.", ex: "Ich weiß nicht, ob sie kommt." },
+    { id: 105, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Einerseits möchte er verreisen, andererseits er hat kein Geld.", correct: "Einerseits möchte er verreisen, andererseits hat er kein Geld.", exp: "'Andererseits' erzwingt die Inversion (Verb an Pos. 2).", ex: "Einerseits ist es teuer, andererseits lohnt es sich." },
+    { id: 106, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Anstatt dass er lernt, er sieht fern.", correct: "Anstatt dass er lernt, sieht er fern.", exp: "Folgt der Hauptsatz auf einen Nebensatz, beginnt der Hauptsatz mit dem Verb.", ex: "Anstatt zu schlafen, arbeitet er." },
+    { id: 107, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Ich gehe zum Supermarkt, um zu kaufen Brot.", correct: "Ich gehe zum Supermarkt, um Brot zu kaufen.", exp: "In Infinitivkonstruktionen mit 'um... zu' steht 'zu + Infinitiv' am Satzende.", ex: "Er lernt viel, um die Prüfung zu bestehen." },
+    { id: 108, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Nachdem wir haben gegessen, gingen wir spazieren.", correct: "Nachdem wir gegessen hatten, gingen wir spazieren.", exp: "Im 'Nachdem'-Nebensatz steht das konjugierte Hilfsverb am Satzende.", ex: "Nachdem er angekommen war, rief er an." },
+    { id: 109, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Zwar ist das Auto alt, aber es fährt noch gut.", correct: "Zwar ist das Auto alt, aber es fährt noch gut.", exp: "'Aber' nimmt Pos. 0 ein; die normale Wortstellung (Subjekt + Verb) bleibt erhalten.", ex: "Er ist klein, aber er rennt schnell." },
+    { id: 110, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Ich weiß nicht, mit wem du hast gesprochen.", correct: "Ich weiß nicht, mit wem du gesprochen hast.", exp: "In indirekten Fragesätzen steht das konjugierte Verb am Ende.", ex: "Frag ihn, wohin er geht." },
+    { id: 111, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Gestern der Mann hat im Garten gearbeitet.", correct: "Gestern hat der Mann im Garten gearbeitet.", exp: "Bei einer Zeitangabe an erster Stelle folgt sofort das konjugierte Verb.", ex: "Heute liest das Kind ein Buch." },
+    { id: 112, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Ohne zu sagen ein Wort, verließ sie den Raum.", correct: "Ohne ein Wort zu sagen, verließ sie den Raum.", exp: "'Zu + Infinitiv' schließt die Infinitivgruppe am Ende ab.", ex: "Ohne nachzudenken, antwortete er." },
+    { id: 113, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Seitdem er wohnt in Berlin, ist er glücklicher.", correct: "Seitdem er in Berlin wohnt, ist er glücklicher.", exp: "Die Subjunktion 'seitdem' schickt das konjugierte Verb ans Ende des Nebensatzes.", ex: "Seitdem sie trainiert, ist sie fit." },
+    { id: 114, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Es gibt viele Gründe, warum wir müssen sparen.", correct: "Es gibt viele Gründe, warum wir sparen müssen.", exp: "Das Modalverb steht im Relativ-/Nebensatz am Ende nach dem Vollverb.", ex: "Das ist die Frage, die wir klären müssen." },
+    { id: 115, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Er arbeitet nicht nur schnell, sondern er macht auch keine Fehler.", correct: "Er arbeitet nicht nur schnell, sondern er macht auch keine Fehler.", exp: "'Sondern' verbindet Hauptsätze auf Position 0 (keine Inversion danach).", ex: "Nicht nur liest er, sondern er schreibt auch." },
+    { id: 116, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Damit du verstehst mich, erkläre ich es noch einmal.", correct: "Damit du mich verstehst, erkläre ich es noch einmal.", exp: "Pronomen im 'damit'-Nebensatz stehen direkt nach dem Subjekt; das Verb steht am Ende.", ex: "Damit er lernt, hilft sie ihm." },
+    { id: 117, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Obwohl hatte er Fieber, ging er zur Arbeit.", correct: "Obwohl er Fieber hatte, ging er zur Arbeit.", exp: "Nach 'obwohl' folgt das Subjekt, das Verb wandert ans Nebensatzende.", ex: "Obwohl es kalt war, schwamm er." },
+    { id: 118, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Sofern du hast Fragen, kannst du mich anrufen.", correct: "Sofern du Fragen hast, kannst du mich anrufen.", exp: "'Sofern' leitet einen Bedingungsnebensatz ein (Verb am Ende).", ex: "Sofern es klappt, kommen wir." },
+    { id: 119, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Gleichwohl er ist müde, macht er weiter.", correct: "Gleichwohl er müde ist, macht er weiter.", exp: "'Gleichwohl' als Subjunktion fordert Endstellung des Verbs.", ex: "Gleichwohl es spät war, las er weiter." },
+    { id: 120, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Anstatt dass du hilfst mir, schaust du nur zu.", correct: "Anstatt dass du mir hilfst, schaust du nur zu.", exp: "Objektpronomen stehen im Nebensatz vor dem Verb am Ende.", ex: "Anstatt dass er antwortet, schweigt er." },
+    { id: 121, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Kaum ich war angekommen, fing es an zu regnen.", correct: "Kaum war ich angekommen, fing es an zu regnen.", exp: "Nach dem temporalen Adverb 'kaum' folgt sofort das konjugierte Verb.", ex: "Kaum sah er sie, lachte er." },
+    { id: 122, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Je schneller wir laufen, desto früher wir kommen an.", correct: "Je schneller wir laufen, desto früher kommen wir an.", exp: "Trennbares Präfix ('an') bleibt im Hauptsatz am Ende, Verb rückt nach 'desto + Komparativ'.", ex: "Je mehr du übst, desto besser wirst du." },
+    { id: 123, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Weder hat er angerufen, noch er hat geschrieben.", correct: "Weder hat er angerufen, noch hat er geschrieben.", exp: "Nach 'noch' folgt die Inversion (Verb an Position 2).", ex: "Weder singt sie, noch tanzt sie." },
+    { id: 124, mod: "M1", cat: "Deutsch - Satzbau", wrong: "Sobald ich bin fertig, komme ich nach draußen.", correct: "Sobald ich fertig bin, komme ich nach draußen.", exp: "'Sobald' fordert die Verb-Endstellung im Nebensatz.", ex: "Sobald er ankommt, rufen wir an." },
+
+    // --- MODULE 2: GERMAN CASES & ARTICLES (IDs 25-49 & 125-149) ---
+    { id: 25, mod: "M2", cat: "Deutsch - Kasus", wrong: "Ich helfe den Mann.", correct: "Ich helfe dem Mann.", exp: "'Helfen' erfordert den Dativ.", ex: "Ich helfe der Frau." },
+    { id: 26, mod: "M2", cat: "Deutsch - Kasus", wrong: "Er schenkt ein Buch für die Mutter.", correct: "Er schenkt der Mutter ein Buch.", exp: "Dativobjekt (Person) steht meist vor Akkusativobjekt (Sache).", ex: "Sie gibt dem Kind ein Spielzeug." },
+    { id: 27, mod: "M2", cat: "Deutsch - Kasus", wrong: "Ich danke dich für die Hilfe.", correct: "Ich danke dir für die Hilfe.", exp: "'Danken' steht immer mit dem Dativ.", ex: "Wir danken Ihnen." },
+    { id: 28, mod: "M2", cat: "Deutsch - Kasus", wrong: "Das Haus gehört der Mann.", correct: "Das Haus gehört dem Mann.", exp: "'Gehören' benötigt den Dativ.", ex: "Das Buch gehört mir." },
+    { id: 29, mod: "M2", cat: "Deutsch - Kasus", wrong: "Ich sehe der Hund im Garten.", correct: "Ich sehe den Hund im Garten.", exp: "Direktes Objekt (Akkusativ maskulin) ist 'den'.", ex: "Er sucht den Schlüssel." },
+    { id: 30, mod: "M2", cat: "Deutsch - Kasus", wrong: "Wir fahren mit das Auto.", correct: "Wir fahren mit dem Auto.", exp: "Die Präposition 'mit' fordert immer den Dativ.", ex: "Sie kommt mit der Bahn." },
+    { id: 31, mod: "M2", cat: "Deutsch - Kasus", wrong: "Das Kind spielt ohne den Freund.", correct: "Das Kind spielt ohne seinen Freund.", exp: "'Ohne' fordert den Akkusativ.", ex: "Er geht ohne einen Schirm." },
+    { id: 32, mod: "M2", cat: "Deutsch - Kasus", wrong: "Er wohnt bei seine Eltern.", correct: "Er wohnt bei seinen Eltern.", exp: "'Bei' erfordert den Dativ Plural ('seinen').", ex: "Sie ist bei ihrer Freundin." },
+    { id: 33, mod: "M2", cat: "Deutsch - Kasus", wrong: "Das Auto steht auf den Parkplatz.", correct: "Das Auto steht auf dem Parkplatz.", exp: "Lokale Frage 'Wo?' (Ort) erfordert Dativ.", ex: "Das Buch liegt auf dem Tisch." },
+    { id: 34, mod: "M2", cat: "Deutsch - Kasus", wrong: "Ich stelle die Tasse auf dem Tisch.", correct: "Ich stelle die Tasse auf den Tisch.", exp: "Richtung/Bewegung 'Wohin?' erfordert Akkusativ.", ex: "Er geht in den Garten." },
+    { id: 35, mod: "M2", cat: "Deutsch - Kasus", wrong: "Gegenüber das Haus ist ein Park.", correct: "Gegenüber dem Haus ist ein Park.", exp: "'Gegenüber' steht immer mit Dativ.", ex: "Er sitzt gegenüber mir." },
+    { id: 36, mod: "M2", cat: "Deutsch - Kasus", wrong: "Ich folge den Weg.", correct: "Ich folge dem Weg.", exp: "'Folgen' verlangt den Dativ.", ex: "Folgen Sie dem Schild." },
+    { id: 37, mod: "M2", cat: "Deutsch - Kasus", wrong: "Trotz das schlechte Wetter gehen wir raus.", correct: "Trotz des schlechten Wetters gehen wir raus.", exp: "'Trotz' erfordert den Genitiv.", ex: "Trotz des Regens spielen sie." },
+    { id: 38, mod: "M2", cat: "Deutsch - Kasus", wrong: "Wegen den Regen bleiben wir hier.", correct: "Wegen des Regens bleiben wir hier.", exp: "'Wegen' verlangt im Standarddeutsch den Genitiv.", ex: "Wegen der Kälte trägt er eine Jacke." },
+    { id: 39, mod: "M2", cat: "Deutsch - Kasus", wrong: "Das ist das Auto mein Bruder.", correct: "Das ist das Auto meines Bruders.", exp: "Possessiver Genitiv maskulin.", ex: "Das Haus meiner Mutter." },
+    { id: 40, mod: "M2", cat: "Deutsch - Kasus", wrong: "Er gratuliert die Frau zum Geburtstag.", correct: "Er gratuliert der Frau zum Geburtstag.", exp: "'Gratulieren' braucht den Dativ.", ex: "Wir gratulieren dem Sieger." },
+    { id: 41, mod: "M2", cat: "Deutsch - Kasus", wrong: "Ich passe auf das Kind auf.", correct: "Ich passe auf das Kind auf.", exp: "'Aufpassen auf' nimmt den Akkusativ.", ex: "Pass auf deinen Hund auf." },
+    { id: 42, mod: "M2", cat: "Deutsch - Kasus", wrong: "Sie trifft sich mit ihren Freunden.", correct: "Sie trifft sich mit ihren Freunden.", exp: "'Mit' fordert Dativ Plural (-n Endung).", ex: "Er spricht mit den Kunden." },
+    { id: 43, mod: "M2", cat: "Deutsch - Kasus", wrong: "Ich habe ein Hund und eine Katze.", correct: "Ich habe einen Hund und eine Katze.", exp: "'Haben' verlangt Akkusativ maskulin ('einen').", ex: "Er kauft einen Tisch." },
+    { id: 44, mod: "M2", cat: "Deutsch - Kasus", wrong: "Gefällt dich das Bild?", correct: "Gefällt dir das Bild?", exp: "'Gefallen' fordert ein Dativpronomen.", ex: "Das Buch gefällt mir." },
+    { id: 45, mod: "M2", cat: "Deutsch - Kasus", wrong: "Schmeckt das Essen dich?", correct: "Schmeckt dir das Essen?", exp: "'Schmecken' fordert den Dativ.", ex: "Es schmeckt uns gut." },
+    { id: 46, mod: "M2", cat: "Deutsch - Kasus", wrong: "Er antwortet den Lehrer nicht.", correct: "Er antwortet dem Lehrer nicht.", exp: "'Antworten' fordert den Dativ.", ex: "Antworte mir bitte." },
+    { id: 47, mod: "M2", cat: "Deutsch - Kasus", wrong: "Aus diesem Grund frage ich dem Mann.", correct: "Aus diesem Grund frage ich den Mann.", exp: "'Fragen' verlangt den Akkusativ.", ex: "Frag den Arzt." },
+    { id: 48, mod: "M2", cat: "Deutsch - Kasus", wrong: "Seit einem Woche bin ich hier.", correct: "Seit einer Woche bin ich hier.", exp: "'Seit' + Dativ (feminin = 'einer').", ex: "Seit einem Monat lernt er." },
+    { id: 49, mod: "M2", cat: "Deutsch - Kasus", wrong: "Wir sprechen über den Problem.", correct: "Wir sprechen über das Problem.", exp: "'Problem' ist sächlich (das Problem, Akkusativ).", ex: "Wir reden über das Thema." },
+    { id: 125, mod: "M2", cat: "Deutsch - Kasus", wrong: "Ich helfe dieses armen Kind.", correct: "Ich helfe diesem armen Kind.", exp: "'Helfen' verlangt Dativ Neutrum ('diesem').", ex: "Ich helfe diesem alten Mann." },
+    { id: 126, mod: "M2", cat: "Deutsch - Kasus", wrong: "Er erinnert sich nicht an den Name.", correct: "Er erinnert sich nicht an den Namen.", exp: "'Name' ist ein N-Deklinationsnomen (Akkusativ: den Namen).", ex: "Ich kenne den Namen nicht." },
+    { id: 127, mod: "M2", cat: "Deutsch - Kasus", wrong: "Wir sprechen mit einem Student.", correct: "Wir sprechen mit einem Studenten.", exp: "'Student' folgt der N-Deklination (Dativ Singular: dem/einem Studenten).", ex: "Er hilft dem Studenten." },
+    { id: 128, mod: "M2", cat: "Deutsch - Kasus", wrong: "Aufgrund des Schlechtes Wetter bleiben wir zu Hause.", correct: "Aufgrund des schlechten Wetters bleiben wir zu Hause.", exp: "'Aufgrund' erfordert den Genitiv (sachlich: des -en ... -s).", ex: "Aufgrund des starken Regens." },
+    { id: 129, mod: "M2", cat: "Deutsch - Kasus", wrong: "Ich folge den Rat des Lehrers.", correct: "Ich folge dem Rat des Lehrers.", exp: "'Folgen' verlangt das Dativobjekt.", ex: "Er folgt dem Beispiel." },
+    { id: 130, mod: "M2", cat: "Deutsch - Kasus", wrong: "Statt eines Buchs kaufte er einen Film.", correct: "Statt eines Buches kaufte er einen Film.", exp: "'Statt/Anstelle' regiert den Genitiv.", ex: "Statt des Kaffees trank er Tee." },
+    { id: 131, mod: "M2", cat: "Deutsch - Kasus", wrong: "Wir sind außerhalb die Stadt spazieren gegangen.", correct: "Wir sind außerhalb der Stadt spazieren gegangen.", exp: "Die Präposition 'außerhalb' erfordert den Genitiv (feminin: der).", ex: "Außerhalb der Öffnungszeiten." },
+    { id: 132, mod: "M2", cat: "Deutsch - Kasus", wrong: "Innerhalb einem Jahr hat er Deutsch gelernt.", correct: "Innerhalb eines Jahres hat er Deutsch gelernt.", exp: "'Innerhalb' verlangt den Genitiv.", ex: "Innerhalb eines Monats." },
+    { id: 133, mod: "M2", cat: "Deutsch - Kasus", wrong: "Das Geschenk ist für den Kollege.", correct: "Das Geschenk ist für den Kollegen.", exp: "'Kollege' gehört zur N-Deklination (Akkusativ: den Kollegen).", ex: "Ich frage den Kollegen." },
+    { id: 134, mod: "M2", cat: "Deutsch - Kasus", wrong: "Ich habe den Polizist nach dem Weg gefragt.", correct: "Ich habe den Polizisten nach dem Weg gefragt.", exp: "'Polizist' ist ein Maskulinum der N-Deklination.", ex: "Er dankt dem Polizisten." },
+    { id: 135, mod: "M2", cat: "Deutsch - Kasus", wrong: "Sie schenkt ihren Neffe ein Buch.", correct: "Sie schenkt ihrem Neffen ein Buch.", exp: "Dativ Person + N-Deklination bei 'Neffe' -> ihrem Neffen.", ex: "Ich gebe dem Neffen ein Spielzeug." },
+    { id: 136, mod: "M2", cat: "Deutsch - Kasus", wrong: "Trotz die Kälte geht er ohne Jacke raus.", correct: "Trotz der Kälte geht er ohne Jacke raus.", exp: "'Trotz' steht im Standarddeutschen mit dem Genitiv (feminin: der).", ex: "Trotz der Schmerzen lacht er." },
+    { id: 137, mod: "M2", cat: "Deutsch - Kasus", wrong: "Während den Ferien haben wir viel gelernt.", correct: "Während der Ferien haben wir viel gelernt.", exp: "'Während' verlangt den Genitiv (Plural: der).", ex: "Während der Fahrt schlief er." },
+    { id: 138, mod: "M2", cat: "Deutsch - Kasus", wrong: "Er vertraut seine Freunde nicht.", correct: "Er vertraut seinen Freunden nicht.", exp: "'Vertrauen' erfordert den Dativ (Plural: seinen -n).", ex: "Ich vertraue dir." },
+    { id: 139, mod: "M2", cat: "Deutsch - Kasus", wrong: "Das entspricht nicht die Wahrheit.", correct: "Das entspricht nicht der Wahrheit.", exp: "'Entsprechen' erfordert den Dativ.", ex: "Das entspricht meinen Erwartungen." },
+    { id: 140, mod: "M2", cat: "Deutsch - Kasus", wrong: "Ich begegne den Nachbar jeden Tag.", correct: "Ich begegne dem Nachbarn jeden Tag.", exp: "'Begegnen' fordert Dativ + N-Deklination bei 'Nachbar'.", ex: "Sie begegnet einem alten Bekannten." },
+    { id: 141, mod: "M2", cat: "Deutsch - Kasus", wrong: "Wir gratulieren der Kunde zum Erfolg.", correct: "Wir gratulieren dem Kunden zum Erfolg.", exp: "'Kunde' ist Maskulinum der N-Deklination mit Dativ.", ex: "Er bedient den Kunden." },
+    { id: 142, mod: "M2", cat: "Deutsch - Kasus", wrong: "Wir wohnen unweit das Zentrums.", correct: "Wir wohnen unweit des Zentrums.", exp: "'Unweit' erfordert den Genitiv.", ex: "Unweit des Bahnhofs." },
+    { id: 143, mod: "M2", cat: "Deutsch - Kasus", wrong: "Dank dem schnellen Eingreifen gab es keine Verletzten.", correct: "Dank des schnellen Eingreifens gab es keine Verletzten.", exp: "'Dank' nutzt schriftsprachlich meist den Genitiv.", ex: "Dank deines Rates habe ich es geschafft." },
+    { id: 144, mod: "M2", cat: "Deutsch - Kasus", wrong: "Sie erinnert mich an meinen Biologie-Experte.", correct: "Sie erinnert mich an meinen Biologie-Experten.", exp: "'Experte' gehört zur N-Deklination (Akkusativ: den Experten).", ex: "Wir befragen einen Experten." },
+    { id: 145, mod: "M2", cat: "Deutsch - Kasus", wrong: "Er nähert sich den Hund vorsichtig.", correct: "Er nähert sich dem Hund vorsichtig.", exp: "'Sich nähern' verlangt den Dativ.", ex: "Das Schiff nähert sich der Küste." },
+    { id: 146, mod: "M2", cat: "Deutsch - Kasus", wrong: "Ich verdanke mein Leben diesen Arzt.", correct: "Ich verdanke mein Leben diesem Arzt.", exp: "'Verdanken' + Dativ für die Person.", ex: "Er verdankt ihr vieles." },
+    { id: 147, mod: "M2", cat: "Deutsch - Kasus", wrong: "Anlässlich das Jubiläums gab es ein Fest.", correct: "Anlässlich des Jubiläums gab es ein Fest.", exp: "'Anlässlich' fordert den Genitiv.", ex: "Anlässlich seines Geburtstags." },
+    { id: 148, mod: "M2", cat: "Deutsch - Kasus", wrong: "Mithilfe einen Freund hat er die Arbeit geschafft.", correct: "Mithilfe eines Freundes hat er die Arbeit geschafft.", exp: "'Mithilfe' erfordert den Genitiv.", ex: "Mithilfe des Wörterbuchs." },
+    { id: 149, mod: "M2", cat: "Deutsch - Kasus", wrong: "Ich schließe mich deine Meinung an.", correct: "Ich schließe mich deiner Meinung an.", exp: "'Sich anschließen' fordert den Dativ.", ex: "Er schloss sich der Gruppe an." },
+
+    // --- MODULE 3: GERMAN TENSES & VERB MODES (IDs 50-74 & 150-174) ---
+    { id: 50, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Gestern ich habe ein Buch gelesen.", correct: "Gestern habe ich ein Buch gelesen.", exp: "Im Perfekt steht das Hilfsverb 'haben/sein' an Position 2.", ex: "Gestern bin ich spät eingeschlafen." },
+    { id: 51, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Er schwimmte gestern im See.", correct: "Er schwamm gestern im See.", exp: "Das Präteritum von 'schwimmen' ist unregelmäßig: 'schwamm'.", ex: "Sie ging nach Hause." },
+    { id: 52, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Ich bin gestern nach Hause gegangen geworden.", correct: "Ich bin gestern nach Hause gegangen.", exp: "Perfekt von Bewegungsverben bildet man mit 'sein' + Partizip II.", ex: "Er ist nach Berlin gefahren." },
+    { id: 53, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Morgen ich werde kaufen ein Auto.", correct: "Morgen werde ich ein Auto kaufen.", exp: "Futur I wird gebildet aus 'werden' an Pos. 2 und Infinitiv am Satzende.", ex: "Nächste Woche werden wir reisen." },
+    { id: 54, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Wenn ich Zeit hätte, würde ich kommen zu dir.", correct: "Wenn ich Zeit hätte, würde ich zu dir kommen.", exp: "Im Konjunktiv II steht der Infinitiv am Satzende.", ex: "Ich würde gerne mehr lesen." },
+    { id: 55, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Er hat gestern das Auto gewaschen gehabt.", correct: "Er hatte gestern das Auto gewaschen.", exp: "Das Plusquamperfekt bildet man mit Präteritum von haben/sein + Partizip II.", ex: "Sie war bereits abgereist." },
+    { id: 56, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Wenn ich reich wäre, kaufe ich ein Haus.", correct: "Wenn ich reich wäre, würde ich ein Haus kaufen.", exp: "Irreale Bedingungen erfordern den Konjunktiv II im Hauptsatz.", ex: "Wäre er hier, ginge es uns besser." },
+    { id: 57, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Er sagte, dass er sei krank.", correct: "Er sagte, er sei krank.", exp: "Konjunktiv I wird für die indirekte Rede genutzt (ohne 'dass' direkt am Verb).", ex: "Sie meinte, sie habe keine Zeit." },
+    { id: 58, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Gestern hat er den Brief geschrieben gehabt.", correct: "Gestern hatte er den Brief geschrieben.", exp: "Vorgezeitigkeit in der Vergangenheit erfordert das Plusquamperfekt.", ex: "Nachdem er gegessen hatte, ging er." },
+    { id: 59, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Bis morgen werde ich das Buch fertig gelesen haben.", correct: "Bis morgen werde ich das Buch fertig gelesen haben.", exp: "Futur II drückt eine vollendete Handlung in der Zukunft aus.", ex: "Er wird es geschafft haben." },
+    { id: 60, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Du musst jetzt schlafen gehen!", correct: "Geh jetzt schlafen!", exp: "Der Imperativ Singular von 'gehen' lautet 'Geh!'.", ex: "Lies den Text laut vor!" },
+    { id: 61, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Sie lauft jeden Morgen fünf Kilometer.", correct: "Sie läuft jeden Morgen fünf Kilometer.", exp: "Starke Verben mit 'a' erhalten in der 3. Person Singular einen Umlaut ('ä').", ex: "Er fährt ein schnelles Auto." },
+    { id: 62, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Er hilf mir immer bei den Aufgaben.", correct: "Er hilft mir immer bei den Aufgaben.", exp: "Starke Verben wechseln in der 3. Person Singular von 'e' zu 'i/ie'.", ex: "Sie sieht den Fehler sofort." },
+    { id: 63, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Gestern wir sind ins Kino gegangen.", correct: "Gestern sind wir ins Kino gegangen.", exp: "Inversion im Perfektsatz bei Zeitangabe an erster Stelle.", ex: "Letzte Woche haben wir gewonnen." },
+    { id: 64, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Ich habe den ganzen Tag gewartet auf dich.", correct: "Ich habe den ganzen Tag auf dich gewartet.", exp: "Das Partizip II schließt den Rahmen im Perfekt ab.", ex: "Er hat die Frage richtig beantwortet." },
+    { id: 65, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Er dachte, dass sie kommen würde.", correct: "Er dachte, dass sie kommen würde.", exp: "Konjunktiv II mit 'würde' drückt eine Erwartung in der Vergangenheit aus.", ex: "Ich hoffte, du würdest anrufen." },
+    { id: 66, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Wir werden morgen das Projekt beenden.", correct: "Wir werden morgen das Projekt beenden.", exp: "Futur I drückt eine feste Absicht für die Zukunft aus.", ex: "Er wird bald ankommen." },
+    { id: 67, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Nachdem er ist angekommen, trank er Kaffee.", correct: "Nachdem er angekommen war, trank er Kaffee.", exp: "'Nachdem' mit Präteritum im Hauptsatz verlangt Plusquamperfekt im Nebensatz.", ex: "Nachdem sie gelernt hatte, bestand sie die Prüfung." },
+    { id: 68, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Er ist geschwommen über den ganzen See.", correct: "Er ist über den ganzen See geschwommen.", exp: "Das Partizip II verbleibt in der Verbklammer am Satzende.", ex: "Sie ist durch den Park gelaufen." },
+    { id: 69, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Nimmst du bitte mit die Tasche?", correct: "Nimmst du bitte die Tasche mit?", exp: "Bei trennbaren Verben wandert das Präfix im Präsens ans Satzende.", ex: "Rufst du mich später an?" },
+    { id: 70, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Ich hätte dich angerufen, wenn ich deine Nummer wusste.", correct: "Ich hätte dich angerufen, wenn ich deine Nummer gewusst hätte.", exp: "Unrealer Konditionalsatz der Vergangenheit erfordert Konjunktiv II Perfekt.", ex: "Wäre ich schneller gewesen, hätte ich gewonnen." },
+    { id: 71, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Er sagte, er hat keine Zeit gehabt.", correct: "Er sagte, er habe keine Zeit gehabt.", exp: "Indirekte Rede verlangt den Konjunktiv I ('habe').", ex: "Sie behauptete, sie sei pünktlich gewesen." },
+    { id: 72, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Ich schließe die Tür ab, bevor ich gehe raus.", correct: "Ich schließe die Tür ab, bevor ich rausgehe.", exp: "Im Nebensatz verschmilzt das trennbare Präfix wieder mit dem Verb am Ende.", ex: "Weil er spät aufsteht, verpasst er den Bus." },
+    { id: 73, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Sei doch nicht so laut sein!", correct: "Sei doch nicht so laut!", exp: "Imperativ Singular von 'sein' lautet 'Sei!'.", ex: "Sei vorsichtig auf dem Eis!" },
+    { id: 74, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Das Haus wird derzeit gebaut von den Arbeitern.", correct: "Das Haus wird derzeit von den Arbeitern gebaut.", exp: "Vorgangspassiv Präsens: 'werden' + Partizip II am Satzende.", ex: "Der Brief wird morgen verschickt." },
+    { id: 150, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Wenn ich gestern Zeit gehabt hätte, ich wäre gekommen.", correct: "Wenn ich gestern Zeit gehabt hätte, wäre ich gekommen.", exp: "Im Konjunktiv II der Vergangenheit folgt im Hauptsatz Inversion.", ex: "Wäre ich da gewesen, hätte ich geholfen." },
+    { id: 151, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Der Verletzte wurde sofort ins Krankenhaus gebracht worden.", correct: "Der Verletzte wurde sofort ins Krankenhaus gebracht.", exp: "Präteritum Passiv = 'wurde' + Partizip II (ohne 'worden').", ex: "Das Haus wurde 1990 gebaut." },
+    { id: 152, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Die Straße wird momentan repariert werden.", correct: "Die Straße wird momentan repariert.", exp: "Vorgangspassiv Präsens = 'werden' + Partizip II.", ex: "Der Test wird gerade geschrieben." },
+    { id: 153, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Er tut so, als ob er alles wissen würde.", correct: "Er tut so, als ob er alles wüsste.", exp: "Bei 'als ob' verwendet man oft den synthetischen Konjunktiv II ('wüsste').", ex: "Sie tut so, als ob sie mich nicht kennte." },
+    { id: 154, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Nachdem er hatte gefrühstückt, ging er zur Arbeit.", correct: "Nachdem er gefrühstückt hatte, ging er zur Arbeit.", exp: "Im Plusquamperfekt-Nebensatz steht das Hilfsverb ('hatte') am Satzende.", ex: "Nachdem sie gelernt hatte, bestand sie." },
+    { id: 155, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Das Problem hätte gelöst werden müssen.", correct: "Das Problem hätte gelöst werden müssen.", exp: "Passiv + Modalverb im Konjunktiv II = hätte + Partizip II + werden + Modalverb Infinitiv.", ex: "Das hätte gemacht werden sollen." },
+    { id: 156, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Er sagte, er habe die Hausaufgabe gemacht gehabt.", correct: "Er sagte, er habe die Hausaufgabe gemacht.", exp: "Perfekt Konjunktiv I = 'habe/sei' + Partizip II (kein 'gehabt').", ex: "Sie sagte, sie sei nach Hause gegangen." },
+    { id: 157, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Das Buch ist von einem bekannten Autor geschrieben worden.", correct: "Das Buch ist von einem bekannten Autor geschrieben worden.", exp: "Perfekt Passiv = 'ist' + Partizip II + 'worden'.", ex: "Der Brief ist gestern abgeschickt worden." },
+    { id: 158, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Wenn ich das gewusst hätte, hätte ich anders gehandelt.", correct: "Wenn ich das gewusst hätte, hätte ich anders gehandelt.", exp: "Bedingungssatz Vergangenheit: Plusquamperfekt Konjunktiv II in beiden Teilen.", ex: "Hätte er trainiert, hätte er gewonnen." },
+    { id: 159, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Morgen um diese Zeit werde ich am Strand liegen.", correct: "Morgen um diese Zeit werde ich am Strand liegen.", exp: "Futur I drückt Vermutungen oder Pläne in der Zukunft aus.", ex: "Er wird wohl schlafen." },
+    { id: 160, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Er schlug vor, dass wir gehen ins Kino.", correct: "Er schlug vor, dass wir ins Kino gehen.", exp: "Nach Vorschlagssätzen mit 'dass' steht das Verb am Nebensatzende.", ex: "Ich schlage vor, dass wir anfangen." },
+    { id: 161, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Das Fenster ist geschlossen worden seit gestern.", correct: "Das Fenster ist seit gestern geschlossen.", exp: "Zustandspassiv bildet man mit 'sein' + Partizip II (Zustand, keine Handlung).", ex: "Die Tür ist geöffnet." },
+    { id: 162, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Er versprach, dass er pünktlich kommen werde.", correct: "Er versprach, dass er pünktlich kommen werde.", exp: "Indirekte Rede der Zukunft nutzt Konjunktiv I von 'werden' ('werde').", ex: "Sie meinte, sie werde anrufen." },
+    { id: 163, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Wir haben die Reparatur durchführen lassen.", correct: "Wir haben die Reparatur durchführen lassen.", exp: "Ersatzinfinitiv mit 'lassen': 'haben' + Infinitiv + 'lassen'.", ex: "Er hat sich die Haare schneiden lassen." },
+    { id: 164, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Ich konnte das Buch nicht lesen, weil ich es vergessen hatte.", correct: "Ich konnte das Buch nicht lesen, weil ich es vergessen hatte.", exp: "Vorzeitigkeit zur Vergangenheit (Präteritum) erfordert Plusquamperfekt.", ex: "Er war traurig, weil er verloren hatte." },
+    { id: 165, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Es wird gesagt, dass der Minister zurücktreten wird.", correct: "Es wird gesagt, dass der Minister zurücktreten wird.", exp: "Subjektloses Passiv ('Es wird gesagt') im Hauptsatz.", ex: "Es wurde viel getanzt." },
+    { id: 166, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "An deiner Stelle würde ich einen Arzt aufsuchen.", correct: "An deiner Stelle würde ich einen Arzt aufsuchen.", exp: "'An deiner Stelle' + Konjunktiv II ('würde + Infinitiv') für Ratschläge.", ex: "An deiner Stelle würde ich lernen." },
+    { id: 167, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Bevor er abreiste, er hatte alle Rechnungen bezahlt.", correct: "Bevor er abreiste, hatte er alle Rechnungen bezahlt.", exp: "Hauptsatz nach 'Bevor'-Nebensatz beginnt mit dem finiten Verb.", ex: "Bevor er ging, verabschiedete er sich." },
+    { id: 168, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Sie tut so, als sei nichts geschehen.", correct: "Sie tut so, als sei nichts geschehen.", exp: "Irrealer Vergleich mit 'als' (ohne 'ob') erfordert Verb direkt nach 'als'.", ex: "Er tut so, als wüsste er alles." },
+    { id: 169, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Hier darf nicht geraucht werden.", correct: "Hier darf nicht geraucht werden.", exp: "Passiv mit Modalverb im Präsens = Modalverb + Partizip II + 'werden'.", ex: "Das muss sofort erledigt werden." },
+    { id: 170, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Ich hätte gern ein Glas Wasser getrunken.", correct: "Ich hätte gern ein Glas Wasser.", exp: "Höfliche Bitte in der Gegenwart: Konjunktiv II von haben ('hätte gern').", ex: "Ich hätte gerne Informationen." },
+    { id: 171, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Das Auto müsste bis morgen repariert sein.", correct: "Das Auto müsste bis morgen repariert sein.", exp: "Vermutung mit Modalverb im Konjunktiv II + Zustandspassiv Infinitiv.", ex: "Er müsste jetzt zu Hause sein." },
+    { id: 172, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Er behauptet, das Geld gefunden zu haben.", correct: "Er behauptet, das Geld gefunden zu haben.", exp: "Infinitiv Perfekt = Partizip II + 'zu haben / zu sein'.", ex: "Er glaubt, die Prüfung bestanden zu haben." },
+    { id: 173, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Gestern sollte ein neues Gesetz beschlossen werden.", correct: "Gestern sollte ein neues Gesetz beschlossen werden.", exp: "Präteritum Passiv mit Modalverb: 'sollte/musste' + Partizip II + 'werden'.", ex: "Das musste früher gemacht werden." },
+    { id: 174, mod: "M3", cat: "Deutsch - Zeitformen", wrong: "Möge die Übung gelingen!", correct: "Möge die Übung gelingen!", exp: "Konjunktiv I als Wunschform/Optativ im Gehobenen Deutsch.", ex: "Es lebe der König!" },
+
+    // --- MODULE 4: ADJECTIVE ENDINGS & PREPOSITIONS (IDs 75-99 & 175-199) ---
+    { id: 75, mod: "M4", cat: "Deutsch - Adjektive", wrong: "Ein gut Mann hilft allen.", correct: "Ein guter Mann hilft allen.", exp: "Nominativ maskulin nach unbestimmtem Artikel verlangt '-er'.", ex: "Ein schöner Tag." },
+    { id: 76, mod: "M4", cat: "Deutsch - Adjektive", wrong: "Ich trinke schwarz Kaffee.", correct: "Ich trinke schwarzen Kaffee.", exp: "Akkusativ maskulin ohne Artikel braucht '-en'.", ex: "Er kauft grünen Tee." },
+    { id: 77, mod: "M4", cat: "Deutsch - Adjektive", wrong: "Das ist ein schönes Haus.", correct: "Das ist ein schönes Haus.", exp: "Nominativ sächlich nach 'ein' endet auf '-es'.", ex: "Ein altes Buch." },
+    { id: 78, mod: "M4", cat: "Deutsch - Adjektive", wrong: "Er trägt einen neu Manteln.", correct: "Er trägt einen neuen Mantel.", exp: "Akkusativ maskulin Adjektivendung ist '-en'.", ex: "Einen roten Pullover." },
+    { id: 79, mod: "M4", cat: "Deutsch - Adjektive", wrong: "Wir wohnen in einer groß Stadt.", correct: "Wir wohnen in einer großen Stadt.", exp: "Dativ feminin nach Artikel erfordert '-en'.", ex: "In einer kleinen Hütte." },
+    { id: 80, mod: "M4", cat: "Deutsch - Adjektive", wrong: "Die nett Frau hilft dem Kind.", correct: "Die nette Frau hilft dem Kind.", exp: "Nominativ feminin nach bestimmtem Artikel endet auf '-e'.", ex: "Die alte Dame." },
+    { id: 81, mod: "M4", cat: "Deutsch - Adjektive", wrong: "Ich kaufe rote Äpfeln.", correct: "Ich kaufe rote Äpfel.", exp: "Akkusativ Plural ohne Artikel endet auf '-e'.", ex: "Süße Früchte." },
+    { id: 82, mod: "M4", cat: "Deutsch - Adjektive", wrong: "Mit dem alt Auto fahren wir nicht.", correct: "Mit dem alten Auto fahren wir nicht.", exp: "Dativ sächlich nach bestimmtem Artikel endet auf '-en'.", ex: "Aus dem neuen Buch." },
+    { id: 83, mod: "M4", cat: "Deutsch - Präpositionen", wrong: "Ich warte für dich.", correct: "Ich warte auf dich.", exp: "Im Deutschen heißt es 'warten auf' + Akkusativ.", ex: "Sie wartet auf den Bus." },
+    { id: 84, mod: "M4", cat: "Deutsch - Präpositionen", wrong: "Er denkt an seine Zukunft nach.", correct: "Er denkt über seine Zukunft nach.", exp: "'Nachdenken' fordert die Präposition 'über'.", ex: "Er denkt über den Plan nach." },
+    { id: 85, mod: "M4", cat: "Deutsch - Präpositionen", wrong: "Ich interessiere mich für Sport.", correct: "Ich interessiere mich für Sport.", exp: "'Sich interessieren' nutzt 'für' + Akkusativ.", ex: "Sie interessiert sich für Kunst." },
+    { id: 86, mod: "M4", cat: "Deutsch - Präpositionen", wrong: "Er nimmt teil an dem Kurs.", correct: "Er nimmt an dem Kurs teil.", exp: "'Teilnehmen an' erfordert den Dativ.", ex: "Teilnahme am Seminar." },
+    { id: 87, mod: "M4", cat: "Deutsch - Präpositionen", wrong: "Wir freuen uns über das Geschenk gestern.", correct: "Wir freuen uns über das Geschenk.", exp: "'Sich freuen über' gilt für Vergangenes/Gegenwärtiges.", ex: "Er freut sich über den Erfolg." },
+    { id: 88, mod: "M4", cat: "Deutsch - Präpositionen", wrong: "Ich freue mich über das Wochenende (Zukunft).", correct: "Ich freue mich auf das Wochenende.", exp: "'Sich freuen auf' gilt für Zukünftiges.", ex: "Wir freuen uns auf den Urlaub." },
+    { id: 89, mod: "M4", cat: "Deutsch - Präpositionen", wrong: "Er stirbt von Hunger.", correct: "Er stirbt an Hunger.", exp: "'Sterben an' + Dativ bei Krankheiten/Ursachen.", ex: "Er starb an einer Krankheit." },
+    { id: 90, mod: "M4", cat: "Deutsch - Präpositionen", wrong: "Sie bittet für Hilfe.", correct: "Sie bittet um Hilfe.", exp: "'Bitten um' + Akkusativ.", ex: "Er bittet um Verzeihung." },
+    { id: 91, mod: "M4", cat: "Deutsch - Präpositionen", wrong: "Es hängt ab von das Wetter.", correct: "Es hängt vom Wetter ab.", exp: "'Abhängen von' + Dativ ('von dem' = 'vom').", ex: "Das hängt von dir ab." },
+    { id: 92, mod: "M4", cat: "Deutsch - Präpositionen", wrong: "Er gratuliert mir für den Erfolg.", correct: "Er gratuliert mir zu dem Erfolg.", exp: "'Gratulieren zu' + Dativ.", ex: "Glückwunsch zum Geburtstag." },
+    { id: 93, mod: "M4", cat: "Deutsch - Präpositionen", wrong: "Ich suche nach einen Schlüssel.", correct: "Ich suche nach einem Schlüssel.", exp: "'Nach' erfordert den Dativ.", ex: "Suche nach der Wahrheit." },
+    { id: 94, mod: "M4", cat: "Deutsch - Präpositionen", wrong: "Sie verzichtet auf das Geld.", correct: "Sie verzichtet auf das Geld.", exp: "'Verzichten auf' + Akkusativ.", ex: "Er verzichtet auf den Nachtisch." },
+    { id: 95, mod: "M4", cat: "Deutsch - Adjektive", wrong: "Guten Tag mit allen Menschen!", correct: "Guten Tag an alle Menschen!", exp: "Anrede an Gruppen erfordert 'an' + Akkusativ.", ex: "Hallo an alle!" },
+    { id: 96, mod: "M4", cat: "Deutsch - Adjektive", wrong: "Das ist ein schöneres Kleid als das.", correct: "Das ist ein schöneres Kleid als das.", exp: "Vergleich mit 'als' nach Komparativ.", ex: "Größer als du." },
+    { id: 97, mod: "M4", cat: "Deutsch - Adjektive", wrong: "Er ist so groß wie sein Vater.", correct: "Er ist so groß wie sein Vater.", exp: "Gleichheit zeigt man mit 'so ... wie'.", ex: "Ebenso schnell wie ich." },
+    { id: 98, mod: "M4", cat: "Deutsch - Adjektive", wrong: "Das ist der am schönsten Garten.", correct: "Das ist der schönste Garten.", exp: "Attributiver Superlativ mit Artikel braucht keine 'am ... -en' Form.", ex: "Der höchste Berg." },
+    { id: 99, mod: "M4", cat: "Deutsch - Adjektive", wrong: "Er fährt ein neu gekauftes Auto.", correct: "Er fährt ein neu gekauftes Auto.", exp: "Partizipien als Adjektive folgen regulärer Adjektivdeklination.", ex: "Das frisch gebackene Brot." },
+    { id: 175, mod: "M4", cat: "Deutsch - Adjektive", wrong: "Wir suchen ein erfahrenen Mitarbeiter.", correct: "Wir suchen einen erfahrenen Mitarbeiter.", exp: "Akkusativ maskulin verlangt '-en' beim Artikel und Adjektiv.", ex: "Einen qualifizierten Lehrer." },
+    { id: 176, mod: "M4", cat: "Deutsch - Adjektive", wrong: "Er wohnt in einem klein Dorf.", correct: "Er wohnt in einem kleinen Dorf.", exp: "Dativ sächlich nach unbestimmtem Artikel endet auf '-en'.", ex: "In einem großen Haus." },
+    { id: 177, mod: "M4", cat: "Deutsch - Adjektive", wrong: "Sie trägt einen schöner Hut.", correct: "Sie trägt einen schönen Hut.", exp: "Akkusativ maskulin Adjektivendung ist immer '-en'.", ex: "Einen modernen Anzug." },
+    { id: 178, mod: "M4", cat: "Deutsch - Präpositionen", wrong: "Er leidet unter eine schwere Krankheit.", correct: "Er leidet unter einer schweren Krankheit.", exp: "'Leiden unter' erfordert den Dativ (feminin: einer -en).", ex: "Er leidet unter dem Lärm." },
+    { id: 179, mod: "M4", cat: "Deutsch - Präpositionen", wrong: "Ich gratuliere dir für deine Bestanden Prüfung.", correct: "Ich gratuliere dir zu deiner bestandenen Prüfung.", exp: "'Gratulieren zu' + Dativ.", ex: "Ich gratuliere dir zum Geburtstag." },
+    { id: 180, mod: "M4", cat: "Deutsch - Präpositionen", wrong: "Wir protestieren gegen die Erhöhung der Preise.", correct: "Wir protestieren gegen die Erhöhung der Preise.", exp: "'Protestieren gegen' fordert den Akkusativ.", ex: "Sie protestieren gegen das Gesetz." },
+    { id: 181, mod: "M4", cat: "Deutsch - Präpositionen", wrong: "Er hat sich für den Fehler entschuldigt.", correct: "Er hat sich für den Fehler entschuldigt.", exp: "'Sich entschuldigen für' + Akkusativ.", ex: "Ich entschuldige mich für die Verspätung." },
+    { id: 182, mod: "M4", cat: "Deutsch - Präpositionen", wrong: "Wir beschäftigen uns mit dieses Thema.", correct: "Wir beschäftigen uns mit diesem Thema.", exp: "'Sich beschäftigen mit' erfordert Dativ ('diesem').", ex: "Er beschäftigt sich mit Musik." },
+    { id: 183, mod: "M4", cat: "Deutsch - Präpositionen", wrong: "Er ist stolz auf seinen Sohn.", correct: "Er ist stolz auf seinen Sohn.", exp: "'Stolz sein auf' fordert den Akkusativ.", ex: "Sie ist stolz auf ihre Leistung." },
+    { id: 184, mod: "M4", cat: "Deutsch - Präpositionen", wrong: "Das passt nicht zu meine Vorstellungen.", correct: "Das passt nicht zu meinen Vorstellungen.", exp: "'Passen zu' fordert Dativ Plural ('meinen -n').", ex: "Das passt gut zu dir." },
+    { id: 185, mod: "M4", cat: "Deutsch - Präpositionen", wrong: "Ich zweifle an seine Ehrlichkeit.", correct: "Ich zweifle an seiner Ehrlichkeit.", exp: "'Zweifeln an' + Dativ (feminin: seiner).", ex: "Er zweifelt an dem Erfolg." },
+    { id: 186, mod: "M4", cat: "Deutsch - Adjektive", wrong: "Das ist das am schnellste Auto der Welt.", correct: "Das ist das schnellste Auto der Welt.", exp: "Attributiver Superlativ mit bestimmtem Artikel endet auf '-ste'.", ex: "Der höchste Berg." },
+    { id: 187, mod: "M4", cat: "Deutsch - Adjektive", wrong: "Die Übung ist genauso schwer als die letzte.", correct: "Die Übung ist genauso schwer wie die letzte.", exp: "Vergleich bei Gleichheit: 'genauso ... wie' (nicht 'als').", ex: "Er ist so alt wie ich." },
+    { id: 188, mod: "M4", cat: "Deutsch - Adjektive", wrong: "Er ist viel älter wie sein Bruder.", correct: "Er ist viel älter als sein Bruder.", exp: "Vergleich bei Ungleichheit (Komparativ): 'älter als'.", ex: "Sie läuft schneller als er." },
+    { id: 189, mod: "M4", cat: "Deutsch - Präpositionen", wrong: "Wir träumen von einen langen Urlaub.", correct: "Wir träumen von einem langen Urlaub.", exp: "'Träumen von' verlangt Dativ maskulin ('einem -en').", ex: "Er träumt von einem Haus." },
+    { id: 190, mod: "M4", cat: "Deutsch - Präpositionen", wrong: "Sie erkundigt sich nach den Preis.", correct: "Sie erkundigt sich nach dem Preis.", exp: "'Sich erkundigen nach' erfordert den Dativ.", ex: "Ich erkundige mich nach dem Weg." },
+    { id: 191, mod: "M4", cat: "Deutsch - Adjektive", wrong: "Viele fleißige Studenten bestehen die Prüfung.", correct: "Viele fleißige Studenten bestehen die Prüfung.", exp: "Nach 'viele' im Nominativ Plural endet das Adjektiv auf '-e'.", ex: "Viele nette Menschen." },
+    { id: 192, mod: "M4", cat: "Deutsch - Adjektive", wrong: "Alle neuen Kunden bekommen einen Rabatt.", correct: "Alle neuen Kunden bekommen einen Rabatt.", exp: "Nach 'alle' verlangt das Adjektiv im Plural immer die Endung '-en'.", ex: "Alle guten Freunde." },
+    { id: 193, mod: "M4", cat: "Deutsch - Präpositionen", wrong: "Es schützt uns vor der Kälte.", correct: "Es schützt uns vor der Kälte.", exp: "'Schützen vor' fordert den Dativ.", ex: "Die Jacke schützt vor Wind." },
+    { id: 194, mod: "M4", cat: "Deutsch - Präpositionen", wrong: "Er hat sich an das Klima gewöhnt.", correct: "Er hat sich an das Klima gewöhnt.", exp: "'Sich gewöhnen an' fordert den Akkusativ.", ex: "Ich gewöhne mich an die Hitze." },
+    { id: 195, mod: "M4", cat: "Deutsch - Präpositionen", wrong: "Sie leidet an einer schweren Grippe.", correct: "Sie leidet an einer schweren Grippe.", exp: "'Leiden an' (Krankheiten) verlangt den Dativ.", ex: "Er leidet an Diabetes." },
+    { id: 196, mod: "M4", cat: "Deutsch - Adjektive", wrong: "Wir trinken gern kaltes Wasser.", correct: "Wir trinken gern kaltes Wasser.", exp: "Akkusativ Neutrum ohne Artikel erfordert die Endung '-es'.", ex: "Er kauft frisches Brot." },
+    { id: 197, mod: "M4", cat: "Deutsch - Adjektive", wrong: "Mit freundlichen Grüßen", correct: "Mit freundlichen Grüßen", exp: "Dativ Plural ohne Artikel fordert die Endung '-en'.", ex: "Aus sicheren Quellen." },
+    { id: 198, mod: "M4", cat: "Deutsch - Präpositionen", wrong: "Ich verlasse mich auf deine Hilfe.", correct: "Ich verlasse mich auf deine Hilfe.", exp: "'Sich verlassen auf' erfordert den Akkusativ.", ex: "Du kannst dich auf mich verlassen." },
+    { id: 199, mod: "M4", cat: "Deutsch - Präpositionen", wrong: "Sie nimmt an der Konferenz teil.", correct: "Sie nimmt an der Konferenz teil.", exp: "'Teilnehmen an' erfordert den Dativ (feminin: der).", ex: "Er nimmt am Unterricht teil." }
+  ];
+
+  let currentModuleList = [...exercises];
+  let currentIndex = 0;
+  // Speichert bereits beantwortete Fragen: { exerciseId: true/false }
+  let userAnswers = {};
+
+  function shuffle(array) {
+    return [...array].sort(() => Math.random() - 0.5);
+  }
+
+  function updateScoreDisplay() {
+    let correctCount = 0;
+    currentModuleList.forEach(item => {
+      if (userAnswers[item.id] === true) {
+        correctCount++;
+      }
+    });
+    document.getElementById("score").innerText = `Punkte: ${correctCount} / ${currentModuleList.length}`;
+  }
+
+  function changeModule() {
+    const selectedMod = document.getElementById("module-select").value;
+    if (selectedMod === "ALL") {
+      currentModuleList = [...exercises];
+    } else {
+      currentModuleList = exercises.filter(e => e.mod === selectedMod);
+    }
+    currentIndex = 0;
+    loadQuestion();
+  }
+
+  function loadQuestion() {
+    const item = currentModuleList[currentIndex];
+    document.getElementById("category").innerText = item.cat;
+    document.getElementById("counter").innerText = `Übung ${currentIndex + 1} / ${currentModuleList.length}`;
+    document.getElementById("wrong-sentence").innerText = item.wrong;
+    document.getElementById("feedback").style.display = "none";
+
+    updateScoreDisplay();
+
+    // Nav-Buttons aktivieren/deaktivieren
+    document.getElementById("prev-btn").disabled = (currentIndex === 0);
+    document.getElementById("next-btn").disabled = (currentIndex === currentModuleList.length - 1);
+
+    const optionsContainer = document.getElementById("options");
+    optionsContainer.innerHTML = "";
+
+    const options = shuffle([
+      { text: item.correct, isCorrect: true },
+      { text: item.wrong, isCorrect: false }
+    ]);
+
+    const alreadyAnswered = userAnswers.hasOwnProperty(item.id);
+
+    options.forEach(option => {
+      const btn = document.createElement("button");
+      btn.className = "option-btn";
+      btn.innerText = option.text;
+      
+      if (alreadyAnswered) {
+        btn.disabled = true;
+        if (userAnswers[item.id] && option.isCorrect) {
+          btn.classList.add("selected-correct");
+        } else if (!userAnswers[item.id] && !option.isCorrect) {
+          btn.classList.add("selected-incorrect");
+        }
+      } else {
+        btn.onclick = () => checkAnswer(btn, option.isCorrect);
+      }
+      optionsContainer.appendChild(btn);
+    });
+
+    // Zeige Feedback, falls die Frage bereits beantwortet wurde
+    if (alreadyAnswered) {
+      showFeedback(userAnswers[item.id], item);
+    }
+  }
+
+  function checkAnswer(selectedBtn, isCorrect) {
+    const item = currentModuleList[currentIndex];
+    userAnswers[item.id] = isCorrect;
+
+    const allButtons = document.querySelectorAll(".option-btn");
+    allButtons.forEach(btn => btn.disabled = true);
+
+    if (isCorrect) {
+      selectedBtn.classList.add("selected-correct");
+    } else {
+      selectedBtn.classList.add("selected-incorrect");
+    }
+
+    showFeedback(isCorrect, item);
+    updateScoreDisplay();
+  }
+
+  function showFeedback(isCorrect, item) {
+    const feedbackEl = document.getElementById("feedback");
+    const feedbackText = document.getElementById("feedback-text");
+    const explanationEl = document.getElementById("explanation");
+    const exampleEl = document.getElementById("example");
+
+    feedbackEl.style.display = "block";
+
+    if (isCorrect) {
+      feedbackEl.className = "feedback correct";
+      feedbackText.innerHTML = "<strong>Richtig!</strong> Gut gemacht.";
+      explanationEl.innerText = "";
+      exampleEl.innerText = "";
+    } else {
+      feedbackEl.className = "feedback incorrect";
+      feedbackText.innerHTML = `<strong>Falsch.</strong> Richtige Lösung: <em>"${item.correct}"</em>`;
+      explanationEl.innerText = "Regel: " + item.exp;
+      exampleEl.innerText = "Beispiel: " + item.ex;
+    }
+  }
+
+  function nextQuestion() {
+    if (currentIndex < currentModuleList.length - 1) {
+      currentIndex++;
+      loadQuestion();
+    }
+  }
+
+  function prevQuestion() {
+    if (currentIndex > 0) {
+      currentIndex--;
+      loadQuestion();
+    }
+  }
+
+  // Tastatursteuerung für Pfeiltasten (← / →)
+  document.addEventListener('keydown', function(event) {
+    if (event.key === "ArrowRight") {
+      nextQuestion();
+    } else if (event.key === "ArrowLeft") {
+      prevQuestion();
+    }
+  });
+
+  // Initiale Ladung
+  loadQuestion();
+</script>
+
+</body>
+</html>
 100+ grammatik questions with automate answers and detailed explaination
